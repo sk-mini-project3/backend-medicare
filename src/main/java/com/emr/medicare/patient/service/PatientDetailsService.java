@@ -16,6 +16,8 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+// 클래스 레벨 readOnly=true: 조회 메서드에서 JPA 스냅샷 저장을 생략해 성능 최적화
+// 쓰기 메서드에는 @Transactional을 별도 선언해 readOnly를 override
 @Transactional(readOnly = true)
 public class PatientDetailsService {
 
@@ -62,6 +64,7 @@ public class PatientDetailsService {
                 request.getInsuranceInfo(),
                 request.getAllergies()
         );
+        // 명시적 save() 없음 — 트랜잭션 종료 시 JPA dirty checking이 변경분을 자동 UPDATE
         return new PatientDetailsResponse(patient);
     }
 

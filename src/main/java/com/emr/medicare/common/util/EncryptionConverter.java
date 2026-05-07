@@ -28,11 +28,13 @@ public class EncryptionConverter implements AttributeConverter<String, String> {
     public String convertToDatabaseColumn(String attribute) {
         if (attribute == null) return null;
         try {
+            // 암호화마다 새 IV 생성 → 동일 값도 매번 다른 암호문 생성 (레인보우 테이블 방지)
             byte[] iv = new byte[IV_LENGTH];
             new SecureRandom().nextBytes(iv);
             Cipher cipher = Cipher.getInstance(ALGORITHM);
             cipher.init(Cipher.ENCRYPT_MODE, buildKey(), new IvParameterSpec(iv));
             byte[] encrypted = cipher.doFinal(attribute.getBytes(StandardCharsets.UTF_8));
+            // DB 저장 형식: Base64(IV):Base64(암호문) → 복호화 시 IV 복원에 필요
             return Base64.getEncoder().encodeToString(iv) + ":" + Base64.getEncoder().encodeToString(encrypted);
         } catch (Exception e) {
             throw new RuntimeException("Encryption failed", e);
@@ -56,6 +58,7 @@ public class EncryptionConverter implements AttributeConverter<String, String> {
 
     private SecretKeySpec buildKey() {
         byte[] raw = encryptionProperties.getSecretKey().getBytes(StandardCharsets.UTF_8);
+        // AES-256은 정확히 32바이트 키 필요 → 환경변수 길이에 무관하게 패딩/자름 처리
         byte[] key = new byte[KEY_LENGTH];
         System.arraycopy(raw, 0, key, 0, Math.min(raw.length, KEY_LENGTH));
         return new SecretKeySpec(key, "AES");
