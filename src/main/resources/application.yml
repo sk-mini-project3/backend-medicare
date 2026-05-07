@@ -2,10 +2,42 @@ spring:
   application:
     name: medicare
 
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/medicare?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
+    properties:
+      hibernate:
+        default_batch_fetch_size: 50
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 20MB
+      max-request-size: 25MB
 
 server:
   port: 3000
+
+app:
+  encryption:
+    secret-key: ${ENCRYPTION_KEY:defaultkeyfordevonly1234567890ab}
+  file:
+    upload-dir: ${FILE_UPLOAD_DIR:./uploads}
+  ai:
+    api-key: ${AI_API_KEY:}
+    base-url: ${AI_BASE_URL:https://api.anthropic.com}
+    model: claude-opus-4-5
+    timeout-seconds: 30

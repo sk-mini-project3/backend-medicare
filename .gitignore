@@ -35,3 +35,14 @@ out/
 
 ### VS Code ###
 .vscode/
+
+
+.CLAUDE*.md
+.CLAUDE2.md
+
+### Local config (personal DB credentials) ###
+application-local.yml
+src/main/resources/application-local.yml
+
+### File uploads ###
+uploads/
