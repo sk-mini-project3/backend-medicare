@@ -1,9 +1,15 @@
+server:
+  port: 3000
+
 spring:
   application:
     name: medicare
 
+  config:
+    import: classpath:verification-codes.yml
+
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/medicare?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/medicalservicedb?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -28,8 +34,10 @@ spring:
       max-file-size: 20MB
       max-request-size: 25MB
 
-server:
-  port: 3000
+jwt:
+  secret: ${JWT_SECRET:this-is-very-secret-key-this-is-very-secret-key}
+  access-expiration: 1800000
+  refresh-expiration: 604800000
 
 app:
   encryption:

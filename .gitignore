@@ -36,7 +36,6 @@ out/
 ### VS Code ###
 .vscode/
 
-
 CLAUDE.md
 CLAUDE2.md
 erd.drawio
@@ -48,5 +47,6 @@ src/main/resources/application-local.yml
 application-docker.yml
 src/main/resources/application-docker.yml
 .api-spec.md
+
 ### File uploads ###
 uploads/
