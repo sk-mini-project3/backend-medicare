@@ -1,11 +1,30 @@
+server:
+  port: 8080
+
 spring:
   application:
     name: medicare
+
+  config:
+    import: classpath:verification-codes.yml
+
+  datasource:
+    url: jdbc:mysql://medical-service-aurora-1.c3iagyqq461m.ap-northeast-2.rds.amazonaws.com:3306/medicalservicedb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: admin
+    password: admin123$
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
 
-server:
-  port: 3000
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+jwt:
+  secret: "this-is-very-secret-key-this-is-very-secret-key"
+  access-expiration: 1800000
+  refresh-expiration: 604800000
