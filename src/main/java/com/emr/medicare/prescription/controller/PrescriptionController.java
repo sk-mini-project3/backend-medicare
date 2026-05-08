@@ -1,6 +1,7 @@
 package com.emr.medicare.prescription.controller;
 
 import com.emr.medicare.common.response.ApiResponse;
+import com.emr.medicare.common.util.SecurityUtils;
 import com.emr.medicare.prescription.dto.request.PrescriptionCreateRequest;
 import com.emr.medicare.prescription.dto.response.PrescriptionResponse;
 import com.emr.medicare.prescription.entity.PrescriptionStatus;
@@ -58,20 +59,16 @@ public class PrescriptionController {
         return ResponseEntity.ok(ApiResponse.success(prescriptionService.getByPatientId(patientId)));
     }
 
-    // A파트 JWT 완성 후: @RequestParam 제거하고 SecurityUtils.getCurrentUserId()로 교체
     @GetMapping("/my")
     @PreAuthorize("hasRole('PATIENT')")
-    public ResponseEntity<ApiResponse<List<PrescriptionResponse>>> getMy(
-            @RequestParam Long patientId) {
-        return ResponseEntity.ok(ApiResponse.success(prescriptionService.getMyPrescriptions(patientId)));
+    public ResponseEntity<ApiResponse<List<PrescriptionResponse>>> getMy() {
+        return ResponseEntity.ok(ApiResponse.success(prescriptionService.getMyPrescriptions()));
     }
 
-    // doctorId는 JWT 완성 후 SecurityUtils.getCurrentUserId()로 교체
     @PatchMapping("/{id}/approve")
     @PreAuthorize("hasRole('DOCTOR')")
-    public ResponseEntity<ApiResponse<PrescriptionResponse>> approve(
-            @PathVariable Long id,
-            @RequestParam Long doctorId) {
+    public ResponseEntity<ApiResponse<PrescriptionResponse>> approve(@PathVariable Long id) {
+        Long doctorId = SecurityUtils.getCurrentUserId();
         return ResponseEntity.ok(ApiResponse.success(prescriptionService.approve(id, doctorId)));
     }
 

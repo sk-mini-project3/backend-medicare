@@ -1,6 +1,7 @@
 package com.emr.medicare.medicalrecord.service;
 
 import com.emr.medicare.common.exception.BaseException;
+import com.emr.medicare.common.util.SecurityUtils;
 import com.emr.medicare.medicalrecord.dto.request.MedicalRecordCreateRequest;
 import com.emr.medicare.medicalrecord.dto.request.MedicalRecordUpdateRequest;
 import com.emr.medicare.medicalrecord.dto.response.MedicalRecordResponse;
@@ -49,8 +50,8 @@ public class MedicalRecordService {
                 .orElseThrow(() -> new BaseException(HttpStatus.NOT_FOUND, "해당 예약의 진료기록을 찾을 수 없습니다."));
     }
 
-    // A파트 JWT 완성 후: @RequestParam 제거하고 SecurityUtils.getCurrentUserId()로 교체
-    public List<MedicalRecordResponse> getMyRecords(Long patientId) {
+    public List<MedicalRecordResponse> getMyRecords() {
+        Long patientId = SecurityUtils.getCurrentUserId();
         return medicalRecordRepository.findByPatientId(patientId).stream()
                 .map(MedicalRecordResponse::new)
                 .collect(Collectors.toList());

@@ -1,6 +1,7 @@
 package com.emr.medicare.reservation.service;
 
 import com.emr.medicare.common.exception.BaseException;
+import com.emr.medicare.common.util.SecurityUtils;
 import com.emr.medicare.reservation.dto.request.ReservationCreateRequest;
 import com.emr.medicare.reservation.dto.request.ReservationStatusUpdateRequest;
 import com.emr.medicare.reservation.dto.response.ReservationResponse;
@@ -51,7 +52,8 @@ public class ReservationService {
                 .collect(Collectors.toList());
     }
 
-    public List<ReservationResponse> getMyReservations(Long patientId) {
+    public List<ReservationResponse> getMyReservations() {
+        Long patientId = SecurityUtils.getCurrentUserId();
         return reservationRepository.findByPatientId(patientId).stream()
                 .map(ReservationResponse::new)
                 .collect(Collectors.toList());

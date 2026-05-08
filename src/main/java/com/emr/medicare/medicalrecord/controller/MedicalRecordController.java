@@ -64,11 +64,9 @@ public class MedicalRecordController {
         return ResponseEntity.ok(ApiResponse.success(medicalRecordService.update(id, request)));
     }
 
-    // A파트 JWT 완성 후: @RequestParam 제거하고 SecurityUtils.getCurrentUserId()로 교체
     @GetMapping("/my")
     @PreAuthorize("hasRole('PATIENT')")
-    public ResponseEntity<ApiResponse<List<MedicalRecordResponse>>> getMy(
-            @RequestParam Long patientId) {
-        return ResponseEntity.ok(ApiResponse.success(medicalRecordService.getMyRecords(patientId)));
+    public ResponseEntity<ApiResponse<List<MedicalRecordResponse>>> getMy() {
+        return ResponseEntity.ok(ApiResponse.success(medicalRecordService.getMyRecords()));
     }
 }

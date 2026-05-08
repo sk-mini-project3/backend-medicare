@@ -54,12 +54,10 @@ public class ReservationController {
         return ResponseEntity.ok(ApiResponse.success(reservationService.getAll(status, doctorId, date)));
     }
 
-    // A파트 JWT 완성 후: @RequestParam 제거하고 SecurityUtils.getCurrentUserId()로 교체
     @GetMapping("/my")
     @PreAuthorize("hasRole('PATIENT')")
-    public ResponseEntity<ApiResponse<List<ReservationResponse>>> getMy(
-            @RequestParam Long patientId) {
-        return ResponseEntity.ok(ApiResponse.success(reservationService.getMyReservations(patientId)));
+    public ResponseEntity<ApiResponse<List<ReservationResponse>>> getMy() {
+        return ResponseEntity.ok(ApiResponse.success(reservationService.getMyReservations()));
     }
 
     @PatchMapping("/{id}/status")

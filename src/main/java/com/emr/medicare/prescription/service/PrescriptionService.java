@@ -1,6 +1,7 @@
 package com.emr.medicare.prescription.service;
 
 import com.emr.medicare.common.exception.BaseException;
+import com.emr.medicare.common.util.SecurityUtils;
 import com.emr.medicare.prescription.dto.request.PrescriptionCreateRequest;
 import com.emr.medicare.prescription.dto.response.PrescriptionResponse;
 import com.emr.medicare.prescription.entity.Prescription;
@@ -62,8 +63,8 @@ public class PrescriptionService {
                 .collect(Collectors.toList());
     }
 
-    // A파트 JWT 완성 후: @RequestParam 제거하고 SecurityUtils.getCurrentUserId()로 교체
-    public List<PrescriptionResponse> getMyPrescriptions(Long patientId) {
+    public List<PrescriptionResponse> getMyPrescriptions() {
+        Long patientId = SecurityUtils.getCurrentUserId();
         return prescriptionRepository.findByPatientId(patientId).stream()
                 .map(PrescriptionResponse::new)
                 .collect(Collectors.toList());
