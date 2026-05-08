@@ -12,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,8 +42,11 @@ public class ReservationService {
         return new ReservationResponse(findOrThrow(reservationId));
     }
 
-    public List<ReservationResponse> getAll() {
-        return reservationRepository.findAll().stream()
+    public List<ReservationResponse> getAll(ReservationStatus status, Long doctorId, LocalDate date) {
+        // 파라미터가 모두 null이면 전체 조회, 하나라도 있으면 필터 쿼리 사용
+        LocalDateTime from = (date != null) ? date.atStartOfDay() : null;
+        LocalDateTime to   = (date != null) ? date.atTime(23, 59, 59) : null;
+        return reservationRepository.findWithFilters(status, doctorId, from, to).stream()
                 .map(ReservationResponse::new)
                 .collect(Collectors.toList());
     }

@@ -4,9 +4,11 @@ import com.emr.medicare.common.response.ApiResponse;
 import com.emr.medicare.reservation.dto.request.ReservationCreateRequest;
 import com.emr.medicare.reservation.dto.request.ReservationStatusUpdateRequest;
 import com.emr.medicare.reservation.dto.response.ReservationResponse;
+import com.emr.medicare.reservation.entity.ReservationStatus;
 import com.emr.medicare.reservation.service.ReservationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -44,8 +47,11 @@ public class ReservationController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('DOCTOR','NURSE')")
-    public ResponseEntity<ApiResponse<List<ReservationResponse>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.success(reservationService.getAll()));
+    public ResponseEntity<ApiResponse<List<ReservationResponse>>> getAll(
+            @RequestParam(required = false) ReservationStatus status,
+            @RequestParam(required = false) Long doctorId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(ApiResponse.success(reservationService.getAll(status, doctorId, date)));
     }
 
     // A파트 JWT 완성 후: @RequestParam 제거하고 SecurityUtils.getCurrentUserId()로 교체
