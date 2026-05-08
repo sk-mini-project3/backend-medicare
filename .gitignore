@@ -37,9 +37,10 @@ out/
 .vscode/
 
 
-.CLAUDE*.md
-.CLAUDE2.md
-.erd.drawio
+CLAUDE.md
+CLAUDE2.md
+erd.drawio
+docs/
 
 ### Local config (personal DB credentials) ###
 application-local.yml
