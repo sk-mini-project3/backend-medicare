@@ -39,10 +39,13 @@ out/
 
 .CLAUDE*.md
 .CLAUDE2.md
+.erd.drawio
 
 ### Local config (personal DB credentials) ###
 application-local.yml
 src/main/resources/application-local.yml
-
+application-docker.yml
+src/main/resources/application-docker.yml
+.api-spec.md
 ### File uploads ###
 uploads/
