@@ -76,4 +76,9 @@ public class Prescription {
         this.status = PrescriptionStatus.APPROVED;
         this.approvedBy = doctorId;
     }
+
+    // PENDING → REJECTED 단방향 전이만 허용
+    public void reject() {
+        this.status = PrescriptionStatus.REJECTED;
+    }
 }

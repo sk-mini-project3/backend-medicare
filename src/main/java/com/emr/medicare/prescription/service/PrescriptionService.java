@@ -66,10 +66,20 @@ public class PrescriptionService {
     @Transactional
     public PrescriptionResponse approve(Long prescriptionId, Long doctorId) {
         Prescription prescription = findOrThrow(prescriptionId);
-        if (prescription.getStatus() == PrescriptionStatus.APPROVED) {
-            throw new BaseException(HttpStatus.BAD_REQUEST, "이미 승인된 처방전입니다.");
+        if (prescription.getStatus() != PrescriptionStatus.PENDING) {
+            throw new BaseException(HttpStatus.BAD_REQUEST, "대기 중인 처방전만 승인할 수 있습니다.");
         }
         prescription.approve(doctorId);
+        return new PrescriptionResponse(prescription);
+    }
+
+    @Transactional
+    public PrescriptionResponse reject(Long prescriptionId) {
+        Prescription prescription = findOrThrow(prescriptionId);
+        if (prescription.getStatus() != PrescriptionStatus.PENDING) {
+            throw new BaseException(HttpStatus.BAD_REQUEST, "대기 중인 처방전만 반려할 수 있습니다.");
+        }
+        prescription.reject();
         return new PrescriptionResponse(prescription);
     }
 

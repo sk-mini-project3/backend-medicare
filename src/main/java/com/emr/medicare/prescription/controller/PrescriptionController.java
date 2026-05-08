@@ -65,6 +65,12 @@ public class PrescriptionController {
         return ResponseEntity.ok(ApiResponse.success(prescriptionService.approve(id, doctorId)));
     }
 
+    @PatchMapping("/{id}/reject")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<ApiResponse<PrescriptionResponse>> reject(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(prescriptionService.reject(id)));
+    }
+
     @GetMapping("/{id}/verify")
     @PreAuthorize("hasAnyRole('DOCTOR','NURSE')")
     public ResponseEntity<ApiResponse<PrescriptionResponse>> verify(@PathVariable Long id) {
