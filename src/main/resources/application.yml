@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT}
 
 spring:
   application:
@@ -9,9 +9,9 @@ spring:
     import: classpath:verification-codes.yml
 
   datasource:
-    url: jdbc:mysql://medical-service-aurora-1.c3iagyqq461m.ap-northeast-2.rds.amazonaws.com:3306/medicalservicedb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: admin
-    password: admin123$
+    url: ${MYSQL_URL}
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -21,10 +21,10 @@ spring:
 
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
 
 jwt:
-  secret: "this-is-very-secret-key-this-is-very-secret-key"
+  secret: ${JWT_SECRET}
   access-expiration: 1800000
   refresh-expiration: 604800000
