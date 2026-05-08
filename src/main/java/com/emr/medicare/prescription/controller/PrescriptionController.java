@@ -3,6 +3,7 @@ package com.emr.medicare.prescription.controller;
 import com.emr.medicare.common.response.ApiResponse;
 import com.emr.medicare.prescription.dto.request.PrescriptionCreateRequest;
 import com.emr.medicare.prescription.dto.response.PrescriptionResponse;
+import com.emr.medicare.prescription.entity.PrescriptionStatus;
 import com.emr.medicare.prescription.service.PrescriptionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,15 @@ public class PrescriptionController {
             @Valid @RequestBody PrescriptionCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(prescriptionService.create(request)));
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('DOCTOR','NURSE')")
+    public ResponseEntity<ApiResponse<List<PrescriptionResponse>>> getAll(
+            @RequestParam(required = false) PrescriptionStatus status,
+            @RequestParam(required = false) Long nurseId,
+            @RequestParam(required = false) Long doctorId) {
+        return ResponseEntity.ok(ApiResponse.success(prescriptionService.getAll(status, nurseId, doctorId)));
     }
 
     @GetMapping("/{id}")

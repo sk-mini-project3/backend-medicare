@@ -50,6 +50,12 @@ public class PrescriptionService {
         return new PrescriptionResponse(findOrThrow(prescriptionId));
     }
 
+    public List<PrescriptionResponse> getAll(PrescriptionStatus status, Long nurseId, Long doctorId) {
+        return prescriptionRepository.findWithFilters(status, nurseId, doctorId).stream()
+                .map(PrescriptionResponse::new)
+                .collect(Collectors.toList());
+    }
+
     public List<PrescriptionResponse> getByPatientId(Long patientId) {
         return prescriptionRepository.findByPatientId(patientId).stream()
                 .map(PrescriptionResponse::new)
