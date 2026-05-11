@@ -13,6 +13,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.jsoup.Jsoup;
+import org.jsoup.safety.Safelist;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,7 +34,7 @@ public class ReservationService {
                 .patientId(request.getPatientId())
                 .doctorId(request.getDoctorId())
                 .reservationDate(request.getReservationDate())
-                .symptoms(request.getSymptoms())
+                .symptoms(sanitize(request.getSymptoms()))
                 // 신규 예약은 요청자 역할에 무관하게 항상 WAITING으로 시작
                 // 이후 간호사가 NURSE_APPROVED, 의사가 COMPLETED로 변경
                 .status(ReservationStatus.WAITING)
@@ -77,5 +80,10 @@ public class ReservationService {
     private Reservation findOrThrow(Long reservationId) {
         return reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new BaseException(HttpStatus.NOT_FOUND, "예약을 찾을 수 없습니다."));
+    }
+
+    private String sanitize(String input) {
+        if (input == null) return null;
+        return Jsoup.clean(input, Safelist.none());
     }
 }

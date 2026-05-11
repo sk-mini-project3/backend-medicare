@@ -12,6 +12,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.jsoup.Jsoup;
+import org.jsoup.safety.Safelist;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,8 +31,8 @@ public class MedicalRecordService {
                 .patientId(request.getPatientId())
                 .doctorId(request.getDoctorId())
                 .reservationId(request.getReservationId())
-                .diagnosis(request.getDiagnosis())
-                .treatmentNotes(request.getTreatmentNotes())
+                .diagnosis(sanitize(request.getDiagnosis()))
+                .treatmentNotes(sanitize(request.getTreatmentNotes()))
                 .build();
         return new MedicalRecordResponse(medicalRecordRepository.save(record));
     }
@@ -61,12 +64,17 @@ public class MedicalRecordService {
     public MedicalRecordResponse update(Long recordId, MedicalRecordUpdateRequest request) {
         MedicalRecord record = findOrThrow(recordId);
         // JPA dirty checking — @PreUpdate가 updatedAt을 자동 갱신하므로 save() 불필요
-        record.update(request.getDiagnosis(), request.getTreatmentNotes());
+        record.update(sanitize(request.getDiagnosis()), sanitize(request.getTreatmentNotes()));
         return new MedicalRecordResponse(record);
     }
 
     private MedicalRecord findOrThrow(Long recordId) {
         return medicalRecordRepository.findById(recordId)
                 .orElseThrow(() -> new BaseException(HttpStatus.NOT_FOUND, "진료기록을 찾을 수 없습니다."));
+    }
+
+    private String sanitize(String input) {
+        if (input == null) return null;
+        return Jsoup.clean(input, Safelist.none());
     }
 }

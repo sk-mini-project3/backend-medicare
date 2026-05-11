@@ -26,6 +26,13 @@ public class SecurityConfig {
         return http
                 .csrf(csrf -> csrf.disable())
 
+                .headers(headers -> headers
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(
+                                "default-src 'self'; script-src 'self'; object-src 'none'; connect-src 'self'"
+                        ))
+                        .frameOptions(frame -> frame.sameOrigin())
+                )
+
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
                                 SessionCreationPolicy.STATELESS
