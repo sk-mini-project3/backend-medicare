@@ -48,5 +48,9 @@ application-docker.yml
 src/main/resources/application-docker.yml
 .api-spec.md
 
+### Environment variables ###
+.env
+.env.*
+
 ### File uploads ###
 uploads/
