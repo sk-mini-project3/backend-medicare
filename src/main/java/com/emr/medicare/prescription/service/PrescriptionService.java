@@ -89,6 +89,12 @@ public class PrescriptionService {
     @Transactional
     public PrescriptionResponse approve(Long prescriptionId, Long doctorId) {
         Prescription prescription = findOrThrow(prescriptionId);
+
+        // 승인 전 위변조 검증
+        if (!computeHash(prescription).equals(prescription.getHash())) {
+            throw new BaseException(HttpStatus.BAD_REQUEST, "처방전 내용이 변조됐습니다.");
+        }
+
         if (prescription.getStatus() != PrescriptionStatus.PENDING) {
             throw new BaseException(HttpStatus.BAD_REQUEST, "대기 중인 처방전만 승인할 수 있습니다.");
         }
