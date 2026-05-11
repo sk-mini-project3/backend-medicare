@@ -9,6 +9,8 @@ import com.emr.medicare.prescription.entity.PrescriptionStatus;
 import com.emr.medicare.prescription.repository.PrescriptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,7 +50,21 @@ public class PrescriptionService {
     }
 
     public PrescriptionResponse getById(Long prescriptionId) {
-        return new PrescriptionResponse(findOrThrow(prescriptionId));
+        Prescription prescription = findOrThrow(prescriptionId);
+
+        // IDOR 방어: PATIENT는 본인 처방전만 조회 가능
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isPatient = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_PATIENT"));
+
+        if (isPatient) {
+            Long currentUserId = SecurityUtils.getCurrentUserId();
+            if (!prescription.getPatientId().equals(currentUserId)) {
+                throw new BaseException(HttpStatus.FORBIDDEN, "본인의 처방전이 아닙니다.");
+            }
+        }
+
+        return new PrescriptionResponse(prescription);
     }
 
     public List<PrescriptionResponse> getAll(PrescriptionStatus status, Long nurseId, Long doctorId) {
