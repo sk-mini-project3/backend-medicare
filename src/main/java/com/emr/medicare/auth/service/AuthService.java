@@ -4,16 +4,31 @@ import com.emr.medicare.auth.dto.LoginRequest;
 import com.emr.medicare.auth.dto.ReissueRequest;
 import com.emr.medicare.auth.dto.SignupRequest;
 import com.emr.medicare.auth.dto.TokenResponse;
+import com.emr.medicare.auth.dto.PasswordResetConfirmRequest;
+import com.emr.medicare.auth.dto.PasswordResetRequest;
+import com.emr.medicare.auth.entity.PasswordResetToken;
+import com.emr.medicare.auth.repository.PasswordResetTokenRepository;
 import com.emr.medicare.common.exception.TooManyRequestsException;
+import com.emr.medicare.doctor.entity.DoctorDetail;
+import com.emr.medicare.nurse.entity.NurseDetail;
 import com.emr.medicare.security.jwt.JwtProvider;
+import com.emr.medicare.user.entity.Role;
 import com.emr.medicare.user.entity.User;
 import com.emr.medicare.user.repository.UserRepository;
+import com.emr.medicare.auth.entity.DoctorVerificationCode;
+import com.emr.medicare.auth.entity.NurseVerificationCode;
+import com.emr.medicare.auth.repository.DoctorVerificationCodeRepository;
+import com.emr.medicare.auth.repository.NurseVerificationCodeRepository;
+import com.emr.medicare.doctor.repository.DoctorDetailRepository;
+import com.emr.medicare.nurse.repository.NurseDetailRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -25,11 +40,92 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
     private final StringRedisTemplate redisTemplate;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final DoctorVerificationCodeRepository doctorVerificationCodeRepository;
+    private final NurseVerificationCodeRepository nurseVerificationCodeRepository;
+    private final DoctorDetailRepository doctorDetailRepository;
+    private final NurseDetailRepository nurseDetailRepository;
 
     public void signup(SignupRequest request) {
 
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("이미 가입된 이메일입니다.");
+        }
+
+        // 의사 검증
+        if (request.getRole() == Role.DOCTOR) {
+
+            DoctorVerificationCode verificationCode =
+                    doctorVerificationCodeRepository
+                            .findByDoctorCode(
+                                    request.getDoctorCode()
+                            )
+                            .orElseThrow(() ->
+                                    new IllegalArgumentException(
+                                            "존재하지 않는 의사 인증코드입니다."
+                                    )
+                            );
+
+            // 이름 검증
+            if (!verificationCode.getOwnerName()
+                    .equals(request.getName())) {
+
+                throw new IllegalArgumentException(
+                        "이름과 의사 인증코드가 일치하지 않습니다."
+                );
+            }
+
+            // 이미 사용
+            if (verificationCode.isUsed()) {
+
+                throw new IllegalArgumentException(
+                        "이미 사용된 의사 인증코드입니다."
+                );
+            }
+
+            verificationCode.setUsed(true);
+
+            doctorVerificationCodeRepository.save(
+                    verificationCode
+            );
+        }
+
+        // 간호사 검증
+        if (request.getRole() == Role.NURSE) {
+
+            NurseVerificationCode verificationCode =
+                    nurseVerificationCodeRepository
+                            .findByNurseCode(
+                                    request.getNurseCode()
+                            )
+                            .orElseThrow(() ->
+                                    new IllegalArgumentException(
+                                            "존재하지 않는 간호사 인증코드입니다."
+                                    )
+                            );
+
+            // 이름 검증
+            if (!verificationCode.getOwnerName()
+                    .equals(request.getName())) {
+
+                throw new IllegalArgumentException(
+                        "이름과 간호사 인증코드가 일치하지 않습니다."
+                );
+            }
+
+            // 이미 사용
+            if (verificationCode.isUsed()) {
+
+                throw new IllegalArgumentException(
+                        "이미 사용된 간호사 인증코드입니다."
+                );
+            }
+
+            verificationCode.setUsed(true);
+
+            nurseVerificationCodeRepository.save(
+                    verificationCode
+            );
         }
 
         User user = User.builder()
@@ -45,7 +141,39 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+
+        if (request.getRole() == Role.DOCTOR) {
+
+            DoctorDetail doctorDetail =
+                    DoctorDetail.builder()
+                            .user(user)
+                            .doctorCode(
+                                    request.getDoctorCode()
+                            )
+                            .build();
+
+            doctorDetailRepository.save(
+                    doctorDetail
+            );
+        }
+
+        if (request.getRole() == Role.NURSE) {
+
+            NurseDetail nurseDetail =
+                    NurseDetail.builder()
+                            .user(user)
+                            .nurseCode(
+                                    request.getNurseCode()
+                            )
+                            .build();
+
+            nurseDetailRepository.save(
+                    nurseDetail
+            );
+        }
     }
+
+
 
     @Transactional(readOnly = true)
     public TokenResponse login(LoginRequest request) {
@@ -233,5 +361,88 @@ public class AuthService {
                     TimeUnit.MINUTES
             );
         }
+    }
+
+    public String createPasswordResetToken(
+            PasswordResetRequest request
+    ) {
+
+        User user =
+                userRepository.findByEmail(
+                        request.getEmail()
+                ).orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "존재하지 않는 이메일입니다."
+                        )
+                );
+
+        String token =
+                UUID.randomUUID().toString();
+
+        PasswordResetToken passwordResetToken =
+                PasswordResetToken.builder()
+                        .token(token)
+                        .user(user)
+
+                        // 24시간 뒤 만료
+                        .expiryDate(
+                                LocalDateTime.now()
+                                        .plusHours(24)
+                        )
+
+                        .used(false)
+                        .build();
+
+        passwordResetTokenRepository.save(
+                passwordResetToken
+        );
+
+        return token;
+    }
+
+    public void resetPassword(
+            PasswordResetConfirmRequest request
+    ) {
+
+        PasswordResetToken token =
+                passwordResetTokenRepository
+                        .findByToken(request.getToken())
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "유효하지 않은 토큰입니다."
+                                )
+                        );
+
+        // 이미 사용된 토큰
+        if (token.isUsed()) {
+
+            throw new IllegalArgumentException(
+                    "이미 사용된 토큰입니다."
+            );
+        }
+
+        // 만료 체크
+        if (token.getExpiryDate()
+                .isBefore(LocalDateTime.now())) {
+
+            throw new IllegalArgumentException(
+                    "만료된 토큰입니다."
+            );
+        }
+
+        User user = token.getUser();
+
+        user.changePassword(
+                passwordEncoder.encode(
+                        request.getNewPassword()
+                )
+        );
+
+        userRepository.save(user);
+
+        // 1회 사용 처리
+        token.setUsed(true);
+
+        passwordResetTokenRepository.save(token);
     }
 }

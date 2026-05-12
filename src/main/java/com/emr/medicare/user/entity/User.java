@@ -37,15 +37,14 @@ public class User {
     @Column(name = "is_locked")
     private boolean isLocked;
 
-    // 의사/간호사 인증에 사용한 코드
-    // PATIENT는 null
-    @Column(unique = true)
-    private String verificationCode;
-
     private LocalDateTime createdAt;
 
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
+    }
+
+    public void changePassword(String password) {
+        this.password = password;
     }
 }
