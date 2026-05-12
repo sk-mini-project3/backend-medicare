@@ -47,6 +47,8 @@ application-local.yml
 src/main/resources/application-local.yml
 application-docker.yml
 src/main/resources/application-docker.yml
+verification-codes.yml
+src/main/resources/verification-codes.yml
 .api-spec.md
 
 ### Environment variables ###
