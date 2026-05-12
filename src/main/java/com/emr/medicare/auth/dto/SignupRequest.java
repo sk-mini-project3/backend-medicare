@@ -24,7 +24,10 @@ public class SignupRequest {
     @NotNull(message = "회원 유형은 필수입니다.")
     private Role role;
 
-    // DOCTOR/NURSE만 필요
-    private String verificationCode;
+    // 의사 인증코드
+    private String doctorCode;
+
+    // 간호사 인증코드
+    private String nurseCode;
 
 }
