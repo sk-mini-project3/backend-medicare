@@ -1,20 +1,20 @@
 package com.emr.medicare.auth.service;
 
-import com.emr.medicare.auth.dto.LoginRequest;
-import com.emr.medicare.auth.dto.MeResponse;
-import com.emr.medicare.auth.dto.ReissueRequest;
-import com.emr.medicare.auth.dto.SignupRequest;
-import com.emr.medicare.auth.dto.TokenResponse;
-import com.emr.medicare.auth.dto.PasswordResetConfirmRequest;
-import com.emr.medicare.auth.dto.PasswordResetRequest;
+import com.emr.medicare.auth.dto.*;
+import com.emr.medicare.auth.entity.DoctorVerificationCode;
+import com.emr.medicare.auth.entity.NurseVerificationCode;
 import com.emr.medicare.auth.entity.PasswordResetToken;
+import com.emr.medicare.auth.repository.DoctorVerificationCodeRepository;
+import com.emr.medicare.auth.repository.NurseVerificationCodeRepository;
 import com.emr.medicare.auth.repository.PasswordResetTokenRepository;
 import com.emr.medicare.common.exception.TooManyRequestsException;
 import com.emr.medicare.common.exception.BaseException;
 import com.emr.medicare.common.util.SecurityUtils;
 import com.emr.medicare.common.service.MailService;
 import com.emr.medicare.doctor.entity.DoctorDetail;
+import com.emr.medicare.doctor.repository.DoctorDetailRepository;
 import com.emr.medicare.nurse.entity.NurseDetail;
+import com.emr.medicare.nurse.repository.NurseDetailRepository;
 import com.emr.medicare.security.jwt.JwtProvider;
 import com.emr.medicare.user.entity.Role;
 import com.emr.medicare.user.entity.User;
@@ -50,9 +50,12 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
     private final StringRedisTemplate redisTemplate;
+
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+
     private final DoctorVerificationCodeRepository doctorVerificationCodeRepository;
     private final NurseVerificationCodeRepository nurseVerificationCodeRepository;
+
     private final DoctorDetailRepository doctorDetailRepository;
     private final NurseDetailRepository nurseDetailRepository;
     private final PatientDetailsRepository patientDetailsRepository;
@@ -108,18 +111,8 @@ public class AuthService {
                 );
             }
 
-            // 이미 사용
-            if (verificationCode.isUsed()) {
-
-                throw new IllegalArgumentException(
-                        "이미 사용된 의사 인증코드입니다."
-                );
-            }
-
-            verificationCode.setUsed(true);
-
-            doctorVerificationCodeRepository.save(
-                    verificationCode
+            throw new IllegalArgumentException(
+                    "이미 가입된 이메일입니다."
             );
         }
 
@@ -208,6 +201,7 @@ public class AuthService {
             );
         }
 
+        // 간호사 상세정보 생성
         if (request.getRole() == Role.NURSE) {
 
             NurseDetail nurseDetail =
@@ -224,6 +218,154 @@ public class AuthService {
         }
     }
 
+    // 역할별 인증코드 검증
+    private void validateRoleVerificationCode(
+            SignupRequest request
+    ) {
+
+        switch (request.getRole()) {
+
+            case PATIENT -> validatePatientSignup(request);
+
+            case NURSE -> validateNurseSignup(request);
+
+            case DOCTOR -> validateDoctorSignup(request);
+
+            default -> throw new IllegalArgumentException(
+                    "올바르지 않은 역할입니다."
+            );
+        }
+    }
+
+    // 환자 회원가입 검증
+    private void validatePatientSignup(
+            SignupRequest request
+    ) {
+
+        if (
+                (request.getDoctorCode() != null &&
+                        !request.getDoctorCode().isBlank())
+                        ||
+                        (request.getNurseCode() != null &&
+                                !request.getNurseCode().isBlank())
+        ) {
+
+            throw new IllegalArgumentException(
+                    "PATIENT 는 인증 코드를 사용할 수 없습니다."
+            );
+        }
+    }
+
+    // 간호사 회원가입 검증
+    private void validateNurseSignup(
+            SignupRequest request
+    ) {
+
+        if (request.getNurseCode() == null ||
+                request.getNurseCode().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "간호사 인증 코드가 필요합니다."
+            );
+        }
+
+        if (request.getDoctorCode() != null &&
+                !request.getDoctorCode().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "간호사 회원가입에는 doctorCode 를 사용할 수 없습니다."
+            );
+        }
+
+        NurseVerificationCode verificationCode =
+                nurseVerificationCodeRepository
+                        .findByNurseCode(
+                                request.getNurseCode()
+                        )
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "존재하지 않는 간호사 인증코드입니다."
+                                )
+                        );
+
+        // 이름 검증
+        if (!verificationCode.getOwnerName()
+                .equals(request.getName())) {
+
+            throw new IllegalArgumentException(
+                    "이름과 간호사 인증코드가 일치하지 않습니다."
+            );
+        }
+
+        // 이미 사용된 코드
+        if (verificationCode.isUsed()) {
+
+            throw new IllegalArgumentException(
+                    "이미 사용된 간호사 인증코드입니다."
+            );
+        }
+
+        verificationCode.setUsed(true);
+
+        nurseVerificationCodeRepository.save(
+                verificationCode
+        );
+    }
+
+    // 의사 회원가입 검증
+    private void validateDoctorSignup(
+            SignupRequest request
+    ) {
+
+        if (request.getDoctorCode() == null ||
+                request.getDoctorCode().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "의사 인증 코드가 필요합니다."
+            );
+        }
+
+        if (request.getNurseCode() != null &&
+                !request.getNurseCode().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "의사 회원가입에는 nurseCode 를 사용할 수 없습니다."
+            );
+        }
+
+        DoctorVerificationCode verificationCode =
+                doctorVerificationCodeRepository
+                        .findByDoctorCode(
+                                request.getDoctorCode()
+                        )
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "존재하지 않는 의사 인증코드입니다."
+                                )
+                        );
+
+        // 이름 검증
+        if (!verificationCode.getOwnerName()
+                .equals(request.getName())) {
+
+            throw new IllegalArgumentException(
+                    "이름과 의사 인증코드가 일치하지 않습니다."
+            );
+        }
+
+        // 이미 사용된 코드
+        if (verificationCode.isUsed()) {
+
+            throw new IllegalArgumentException(
+                    "이미 사용된 의사 인증코드입니다."
+            );
+        }
+
+        verificationCode.setUsed(true);
+
+        doctorVerificationCodeRepository.save(
+                verificationCode
+        );
     private static String trimToNull(String value) {
         if (!StringUtils.hasText(value)) {
             return null;
@@ -237,7 +379,7 @@ public class AuthService {
         String failKey =
                 "login:fail:" + request.getEmail();
 
-        // 1. 로그인 잠금 여부 검사
+        // 로그인 잠금 여부 검사
         String failCount =
                 redisTemplate.opsForValue().get(failKey);
 
@@ -253,7 +395,7 @@ public class AuthService {
                 request.getEmail()
         ).orElse(null);
 
-        // 2. 이메일 없음
+        // 이메일 없음
         if (user == null) {
 
             increaseFailCount(failKey);
@@ -263,7 +405,7 @@ public class AuthService {
             );
         }
 
-        // 3. 비밀번호 틀림
+        // 비밀번호 불일치
         if (!passwordEncoder.matches(
                 request.getPassword(),
                 user.getPassword()
@@ -276,7 +418,7 @@ public class AuthService {
             );
         }
 
-        // 4. 로그인 성공 시 실패 횟수 초기화
+        // 로그인 성공 시 실패 횟수 초기화
         redisTemplate.delete(failKey);
 
         String accessToken =
@@ -423,6 +565,7 @@ public class AuthService {
         }
     }
 
+    // 비밀번호 재설정 토큰 생성
     public void createPasswordResetToken(
             PasswordResetRequest request
     ) {
@@ -432,6 +575,7 @@ public class AuthService {
                         request.getEmail()
                 );
 
+        // Enumeration 방어
         if (optionalUser.isEmpty()) {
             return;
         }
@@ -460,6 +604,7 @@ public class AuthService {
         );
     }
 
+    // 비밀번호 재설정
     public void resetPassword(
             PasswordResetConfirmRequest request
     ) {
@@ -481,7 +626,7 @@ public class AuthService {
             );
         }
 
-        // 만료 체크
+        // 만료 검증
         if (token.getExpiryDate()
                 .isBefore(LocalDateTime.now())) {
 
