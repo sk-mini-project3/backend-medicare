@@ -52,7 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         """
                         {
                           "status": 401,
-                          "massage": "Blacklisted Token"
+                          "message": "Blacklisted Token"
                         }
                         """
                 );
@@ -95,7 +95,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         """
                         {
                           "status": 401,
-                          "massage": "Invalid Token"
+                          "message": "Invalid Token"
                         }
                         """
                 );

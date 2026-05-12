@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -128,7 +129,7 @@ public class PrescriptionService {
                 + String.valueOf(p.getPatientId())
                 + String.valueOf(p.getMedication())
                 + String.valueOf(p.getDosage())
-                + String.valueOf(p.getCreatedAt());
+                + p.getCreatedAt().truncatedTo(ChronoUnit.SECONDS).toString();
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] bytes = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
