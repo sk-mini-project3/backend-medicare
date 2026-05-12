@@ -15,6 +15,13 @@ public class AuthController {
 
     private final AuthService authService;
 
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<MeResponse>> me() {
+        return ResponseEntity.ok(
+                ApiResponse.success(authService.getCurrentUserProfile())
+        );
+    }
+
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<Void>> signup(
             @Valid @RequestBody SignupRequest request

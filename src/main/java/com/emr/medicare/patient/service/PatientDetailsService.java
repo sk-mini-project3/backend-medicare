@@ -5,9 +5,11 @@ import com.emr.medicare.common.util.SecurityUtils;
 import com.emr.medicare.patient.dto.request.PatientDetailsCreateRequest;
 import com.emr.medicare.patient.dto.request.PatientDetailsUpdateRequest;
 import com.emr.medicare.patient.dto.response.MyProfileResponse;
+import com.emr.medicare.patient.dto.response.PatientNurseLookupResponse;
 import com.emr.medicare.patient.dto.response.PatientDetailsResponse;
 import com.emr.medicare.patient.entity.PatientDetails;
 import com.emr.medicare.patient.repository.PatientDetailsRepository;
+import com.emr.medicare.user.entity.Role;
 import com.emr.medicare.user.entity.User;
 import com.emr.medicare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -44,16 +46,29 @@ public class PatientDetailsService {
                 .insuranceInfo(request.getInsuranceInfo())
                 .allergies(request.getAllergies())
                 .build();
-        return new PatientDetailsResponse(patientDetailsRepository.save(patient));
+        return toResponse(patientDetailsRepository.save(patient));
     }
 
     public PatientDetailsResponse getById(Long userId) {
-        return new PatientDetailsResponse(findOrThrow(userId));
+        return toResponse(findOrThrow(userId));
+    }
+
+    /**
+     * EMR 화면용: 계정(users) 정보는 항상 포함하고, patient_details가 있으면 상세 필드를 채웁니다.
+     */
+    public PatientNurseLookupResponse lookupForStaff(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BaseException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+        if (user.getRole() != Role.PATIENT) {
+            throw new BaseException(HttpStatus.BAD_REQUEST, "환자만 조회할 수 있습니다.");
+        }
+        PatientDetails details = patientDetailsRepository.findById(userId).orElse(null);
+        return PatientNurseLookupResponse.of(user, details);
     }
 
     public List<PatientDetailsResponse> getAll() {
         return patientDetailsRepository.findAll().stream()
-                .map(PatientDetailsResponse::new)
+                .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
@@ -78,7 +93,13 @@ public class PatientDetailsService {
                 request.getAllergies()
         );
         // 명시적 save() 없음 — 트랜잭션 종료 시 JPA dirty checking이 변경분을 자동 UPDATE
-        return new PatientDetailsResponse(patient);
+        return toResponse(patient);
+    }
+
+    private PatientDetailsResponse toResponse(PatientDetails patient) {
+        return userRepository.findById(patient.getUserId())
+                .map(u -> new PatientDetailsResponse(patient, u.getName(), u.getPhone()))
+                .orElseGet(() -> new PatientDetailsResponse(patient, "", ""));
     }
 
     private PatientDetails findOrThrow(Long userId) {

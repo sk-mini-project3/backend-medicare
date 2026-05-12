@@ -9,11 +9,11 @@ import com.emr.medicare.prescription.entity.PrescriptionStatus;
 import com.emr.medicare.prescription.repository.PrescriptionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -31,6 +31,20 @@ public class PrescriptionService {
 
     @Transactional
     public PrescriptionResponse create(PrescriptionCreateRequest request) {
+        // 간호사가 대리 입력한 처방(nurseId 있음)만 의사 승인 대기(PENDING).
+        // 의사가 직접 작성한 처방(nurseId 없음, doctorId 있음)은 즉시 확정(APPROVED).
+        boolean nurseDraft = request.getNurseId() != null;
+        PrescriptionStatus initialStatus =
+                nurseDraft ? PrescriptionStatus.PENDING : PrescriptionStatus.APPROVED;
+        Long approvedBy = null;
+        if (!nurseDraft && request.getDoctorId() != null) {
+            approvedBy = request.getDoctorId();
+        }
+        if (!nurseDraft && request.getDoctorId() == null) {
+            // 작성 주체가 불명확하면 기존처럼 대기
+            initialStatus = PrescriptionStatus.PENDING;
+        }
+
         Prescription prescription = Prescription.builder()
                 .patientId(request.getPatientId())
                 .doctorId(request.getDoctorId())
@@ -38,8 +52,8 @@ public class PrescriptionService {
                 .nurseId(request.getNurseId())
                 .medication(request.getMedication())
                 .dosage(request.getDosage())
-                // 신규 처방은 항상 PENDING — APPROVED는 의사가 별도 승인 API로만 전환
-                .status(PrescriptionStatus.PENDING)
+                .status(initialStatus)
+                .approvedBy(approvedBy)
                 .build();
 
         // 1차 저장으로 prescriptionId 확보 — hash 계산에 ID 포함 필요

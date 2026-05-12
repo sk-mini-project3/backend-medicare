@@ -4,6 +4,7 @@ import com.emr.medicare.common.response.ApiResponse;
 import com.emr.medicare.patient.dto.request.PatientDetailsCreateRequest;
 import com.emr.medicare.patient.dto.request.PatientDetailsUpdateRequest;
 import com.emr.medicare.patient.dto.response.MyProfileResponse;
+import com.emr.medicare.patient.dto.response.PatientNurseLookupResponse;
 import com.emr.medicare.patient.dto.response.PatientDetailsResponse;
 import com.emr.medicare.patient.service.PatientDetailsService;
 import jakarta.validation.Valid;
@@ -41,6 +42,12 @@ public class PatientController {
             @Valid @RequestBody PatientDetailsCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(patientDetailsService.create(userId, request)));
+    }
+
+    @GetMapping("/{userId}/lookup")
+    @PreAuthorize("hasAnyRole('DOCTOR','NURSE')")
+    public ResponseEntity<ApiResponse<PatientNurseLookupResponse>> lookupForStaff(@PathVariable Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(patientDetailsService.lookupForStaff(userId)));
     }
 
     @GetMapping("/{userId}")

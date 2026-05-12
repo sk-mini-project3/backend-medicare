@@ -1,6 +1,7 @@
 package com.emr.medicare.medicalrecord.controller;
 
 import com.emr.medicare.common.response.ApiResponse;
+import com.emr.medicare.common.util.SecurityUtils;
 import com.emr.medicare.medicalrecord.dto.request.MedicalRecordCreateRequest;
 import com.emr.medicare.medicalrecord.dto.request.MedicalRecordUpdateRequest;
 import com.emr.medicare.medicalrecord.dto.response.MedicalRecordResponse;
@@ -33,6 +34,17 @@ public class MedicalRecordController {
             @Valid @RequestBody MedicalRecordCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(medicalRecordService.create(request)));
+    }
+
+    /**
+     * 로그인한 의사가 작성한 진료기록 목록 (최신순).
+     * {@code /{id}} 보다 먼저 등록해야 경로 충돌이 없습니다.
+     */
+    @GetMapping("/doctor/me")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<ApiResponse<List<MedicalRecordResponse>>> getMyRecordsAsDoctor() {
+        Long doctorId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(ApiResponse.success(medicalRecordService.getByDoctorId(doctorId)));
     }
 
     @GetMapping("/{id}")

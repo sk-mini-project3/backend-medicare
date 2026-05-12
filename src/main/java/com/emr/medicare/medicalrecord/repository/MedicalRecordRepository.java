@@ -10,5 +10,7 @@ public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, Lo
 
     List<MedicalRecord> findByPatientId(Long patientId);
 
+    List<MedicalRecord> findByDoctorIdOrderByCreatedAtDesc(Long doctorId);
+
     Optional<MedicalRecord> findByReservationId(Long reservationId);
 }

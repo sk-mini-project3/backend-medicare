@@ -8,6 +8,8 @@ import com.emr.medicare.reservation.dto.response.ReservationResponse;
 import com.emr.medicare.reservation.entity.Reservation;
 import com.emr.medicare.reservation.entity.ReservationStatus;
 import com.emr.medicare.reservation.repository.ReservationRepository;
+import com.emr.medicare.user.entity.User;
+import com.emr.medicare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -18,7 +20,10 @@ import org.jsoup.safety.Safelist;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,6 +32,7 @@ import java.util.stream.Collectors;
 public class ReservationService {
 
     private final ReservationRepository reservationRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public ReservationResponse create(ReservationCreateRequest request) {
@@ -39,27 +45,29 @@ public class ReservationService {
                 // 이후 간호사가 NURSE_APPROVED, 의사가 COMPLETED로 변경
                 .status(ReservationStatus.WAITING)
                 .build();
-        return new ReservationResponse(reservationRepository.save(reservation));
+        return toResponse(reservationRepository.save(reservation));
     }
 
     public ReservationResponse getById(Long reservationId) {
-        return new ReservationResponse(findOrThrow(reservationId));
+        return toResponse(findOrThrow(reservationId));
     }
 
     public List<ReservationResponse> getAll(ReservationStatus status, Long doctorId, LocalDate date) {
-        // 파라미터가 모두 null이면 전체 조회, 하나라도 있으면 필터 쿼리 사용
         LocalDateTime from = (date != null) ? date.atStartOfDay() : null;
-        LocalDateTime to   = (date != null) ? date.atTime(23, 59, 59) : null;
-        return reservationRepository.findWithFilters(status, doctorId, from, to).stream()
-                .map(ReservationResponse::new)
-                .collect(Collectors.toList());
+        LocalDateTime to = (date != null) ? date.atTime(23, 59, 59) : null;
+        List<Reservation> list = reservationRepository.findWithFilters(status, doctorId, from, to);
+        return mapWithPatientNames(list);
+    }
+
+    public List<ReservationResponse> getByPatientId(Long patientId) {
+        List<Reservation> list = reservationRepository.findByPatientId(patientId);
+        return mapWithPatientNames(list);
     }
 
     public List<ReservationResponse> getMyReservations() {
         Long patientId = SecurityUtils.getCurrentUserId();
-        return reservationRepository.findByPatientId(patientId).stream()
-                .map(ReservationResponse::new)
-                .collect(Collectors.toList());
+        List<Reservation> list = reservationRepository.findByPatientId(patientId);
+        return mapWithPatientNames(list);
     }
 
     @Transactional
@@ -67,7 +75,32 @@ public class ReservationService {
         Reservation reservation = findOrThrow(reservationId);
         validateStatusTransition(reservation.getStatus(), request.getStatus());
         reservation.changeStatus(request.getStatus());
-        return new ReservationResponse(reservation);
+        return toResponse(reservation);
+    }
+
+    private List<ReservationResponse> mapWithPatientNames(List<Reservation> list) {
+        Set<Long> ids = list.stream()
+                .map(Reservation::getPatientId)
+                .collect(Collectors.toCollection(HashSet::new));
+        Map<Long, String> names = loadPatientNames(ids);
+        return list.stream()
+                .map(r -> new ReservationResponse(r, names.get(r.getPatientId())))
+                .collect(Collectors.toList());
+    }
+
+    private Map<Long, String> loadPatientNames(Set<Long> patientIds) {
+        if (patientIds.isEmpty()) {
+            return Map.of();
+        }
+        return userRepository.findAllById(patientIds).stream()
+                .collect(Collectors.toMap(User::getUserId, User::getName, (a, b) -> a));
+    }
+
+    private ReservationResponse toResponse(Reservation reservation) {
+        String name = userRepository.findById(reservation.getPatientId())
+                .map(User::getName)
+                .orElse(null);
+        return new ReservationResponse(reservation, name);
     }
 
     // COMPLETED는 진료 완료 확정 상태 — 이후 되돌리면 처방전·진료기록과 불일치 발생

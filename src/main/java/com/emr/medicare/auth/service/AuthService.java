@@ -8,6 +8,8 @@ import com.emr.medicare.auth.repository.DoctorVerificationCodeRepository;
 import com.emr.medicare.auth.repository.NurseVerificationCodeRepository;
 import com.emr.medicare.auth.repository.PasswordResetTokenRepository;
 import com.emr.medicare.common.exception.TooManyRequestsException;
+import com.emr.medicare.common.exception.BaseException;
+import com.emr.medicare.common.util.SecurityUtils;
 import com.emr.medicare.common.service.MailService;
 import com.emr.medicare.doctor.entity.DoctorDetail;
 import com.emr.medicare.doctor.repository.DoctorDetailRepository;
@@ -17,8 +19,17 @@ import com.emr.medicare.security.jwt.JwtProvider;
 import com.emr.medicare.user.entity.Role;
 import com.emr.medicare.user.entity.User;
 import com.emr.medicare.user.repository.UserRepository;
+import com.emr.medicare.auth.entity.DoctorVerificationCode;
+import com.emr.medicare.auth.entity.NurseVerificationCode;
+import com.emr.medicare.auth.repository.DoctorVerificationCodeRepository;
+import com.emr.medicare.auth.repository.NurseVerificationCodeRepository;
+import com.emr.medicare.doctor.repository.DoctorDetailRepository;
+import com.emr.medicare.nurse.repository.NurseDetailRepository;
+import com.emr.medicare.patient.entity.PatientDetails;
+import com.emr.medicare.patient.repository.PatientDetailsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +38,8 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -45,19 +58,104 @@ public class AuthService {
 
     private final DoctorDetailRepository doctorDetailRepository;
     private final NurseDetailRepository nurseDetailRepository;
-
+    private final PatientDetailsRepository patientDetailsRepository;
     private final MailService mailService;
+
+    @Transactional(readOnly = true)
+    public MeResponse getCurrentUserProfile() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (userId == null) {
+            throw new BaseException(HttpStatus.UNAUTHORIZED, "인증 정보가 없습니다.");
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BaseException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+        return new MeResponse(
+                user.getUserId(),
+                user.getName(),
+                user.getEmail(),
+                user.getRole().name(),
+                user.getPhone() != null ? user.getPhone() : ""
+        );
+    }
 
     public void signup(SignupRequest request) {
 
         if (userRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException("이미 가입된 이메일입니다.");
+        }
+
+        // 의사 검증
+        if (request.getRole() == Role.DOCTOR) {
+
+            DoctorVerificationCode verificationCode =
+                    doctorVerificationCodeRepository
+                            .findByDoctorCode(
+                                    request.getDoctorCode()
+                            )
+                            .orElseThrow(() ->
+                                    new IllegalArgumentException(
+                                            "존재하지 않는 의사 인증코드입니다."
+                                    )
+                            );
+
+            // 이름 검증 (공백 무시)
+            String registeredName = verificationCode.getOwnerName() == null
+                    ? ""
+                    : verificationCode.getOwnerName().trim();
+            String givenName = request.getName() == null ? "" : request.getName().trim();
+            if (!registeredName.equals(givenName)) {
+                throw new IllegalArgumentException(
+                        "이름과 의사 인증코드가 일치하지 않습니다. 해당 코드에 등록된 이름은 「"
+                                + registeredName
+                                + "」입니다."
+                );
+            }
 
             throw new IllegalArgumentException(
                     "이미 가입된 이메일입니다."
             );
         }
 
-        validateRoleVerificationCode(request);
+        // 간호사 검증
+        if (request.getRole() == Role.NURSE) {
+
+            NurseVerificationCode verificationCode =
+                    nurseVerificationCodeRepository
+                            .findByNurseCode(
+                                    request.getNurseCode()
+                            )
+                            .orElseThrow(() ->
+                                    new IllegalArgumentException(
+                                            "존재하지 않는 간호사 인증코드입니다."
+                                    )
+                            );
+
+            String registeredName = verificationCode.getOwnerName() == null
+                    ? ""
+                    : verificationCode.getOwnerName().trim();
+            String givenName = request.getName() == null ? "" : request.getName().trim();
+            if (!registeredName.equals(givenName)) {
+                throw new IllegalArgumentException(
+                        "이름과 간호사 인증코드가 일치하지 않습니다. 해당 코드에 등록된 이름은 「"
+                                + registeredName
+                                + "」입니다."
+                );
+            }
+
+            // 이미 사용
+            if (verificationCode.isUsed()) {
+
+                throw new IllegalArgumentException(
+                        "이미 사용된 간호사 인증코드입니다."
+                );
+            }
+
+            verificationCode.setUsed(true);
+
+            nurseVerificationCodeRepository.save(
+                    verificationCode
+            );
+        }
 
         User user = User.builder()
                 .email(request.getEmail())
@@ -73,7 +171,21 @@ public class AuthService {
 
         userRepository.save(user);
 
-        // 의사 상세정보 생성
+        if (request.getRole() == Role.PATIENT && !patientDetailsRepository.existsById(user.getUserId())) {
+            PatientDetails patientDetails = PatientDetails.builder()
+                    .userId(user.getUserId())
+                    .residentNumber("SIGNUP_PENDING")
+                    .gender("미입력")
+                    .birthDate(null)
+                    .emergencyContact(null)
+                    .bloodType(trimToNull(request.getBloodType()))
+                    .address(null)
+                    .insuranceInfo(trimToNull(request.getInsuranceInfo()))
+                    .allergies(trimToNull(request.getAllergies()))
+                    .build();
+            patientDetailsRepository.save(patientDetails);
+        }
+
         if (request.getRole() == Role.DOCTOR) {
 
             DoctorDetail doctorDetail =
@@ -254,6 +366,11 @@ public class AuthService {
         doctorVerificationCodeRepository.save(
                 verificationCode
         );
+    private static String trimToNull(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim();
     }
 
     @Transactional(readOnly = true)
@@ -308,6 +425,7 @@ public class AuthService {
                 jwtProvider.createAccessToken(
                         user.getUserId(),
                         user.getEmail(),
+                        user.getName(),
                         user.getRole()
                 );
 
@@ -315,6 +433,7 @@ public class AuthService {
                 jwtProvider.createRefreshToken(
                         user.getUserId(),
                         user.getEmail(),
+                        user.getName(),
                         user.getRole()
                 );
 
@@ -373,6 +492,7 @@ public class AuthService {
                 jwtProvider.createAccessToken(
                         user.getUserId(),
                         user.getEmail(),
+                        user.getName(),
                         user.getRole()
                 );
 
@@ -380,6 +500,7 @@ public class AuthService {
                 jwtProvider.createRefreshToken(
                         user.getUserId(),
                         user.getEmail(),
+                        user.getName(),
                         user.getRole()
                 );
 

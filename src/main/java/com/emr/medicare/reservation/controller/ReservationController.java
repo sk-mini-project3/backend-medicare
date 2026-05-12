@@ -39,6 +39,13 @@ public class ReservationController {
                 .body(ApiResponse.success(reservationService.create(request)));
     }
 
+    @GetMapping("/patient/{patientId}")
+    @PreAuthorize("hasAnyRole('DOCTOR','NURSE')")
+    public ResponseEntity<ApiResponse<List<ReservationResponse>>> getByPatientId(
+            @PathVariable Long patientId) {
+        return ResponseEntity.ok(ApiResponse.success(reservationService.getByPatientId(patientId)));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('DOCTOR','NURSE','PATIENT')")
     public ResponseEntity<ApiResponse<ReservationResponse>> getById(@PathVariable Long id) {
