@@ -72,7 +72,8 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/signup",
                                 "/api/auth/login",
-                                "/api/auth/reissue"
+                                "/api/auth/reissue",
+                                "/api/auth/password-reset/**"
                         ).permitAll()
 
                         .anyRequest().authenticated()

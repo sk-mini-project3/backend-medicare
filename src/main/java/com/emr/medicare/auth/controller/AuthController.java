@@ -86,19 +86,18 @@ public class AuthController {
     }
 
     @PostMapping("/password-reset/request")
-    public ResponseEntity<ApiResponse<String>> requestPasswordReset(
+    public ResponseEntity<ApiResponse<Void>> requestPasswordReset(
             @RequestBody PasswordResetRequest request
     ) {
 
-        String token =
-                authService.createPasswordResetToken(
-                        request
-                );
+        authService.createPasswordResetToken(
+                request
+        );
 
         return ResponseEntity.ok(
                 ApiResponse.success(
-                        "비밀번호 재설정 토큰 생성 완료",
-                        token
+                        "이메일이 존재하면 재설정 메일을 전송했습니다.",
+                        null
                 )
         );
     }

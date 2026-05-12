@@ -12,6 +12,7 @@ import com.emr.medicare.auth.repository.PasswordResetTokenRepository;
 import com.emr.medicare.common.exception.TooManyRequestsException;
 import com.emr.medicare.common.exception.BaseException;
 import com.emr.medicare.common.util.SecurityUtils;
+import com.emr.medicare.common.service.MailService;
 import com.emr.medicare.doctor.entity.DoctorDetail;
 import com.emr.medicare.nurse.entity.NurseDetail;
 import com.emr.medicare.security.jwt.JwtProvider;
@@ -34,6 +35,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -54,6 +56,7 @@ public class AuthService {
     private final DoctorDetailRepository doctorDetailRepository;
     private final NurseDetailRepository nurseDetailRepository;
     private final PatientDetailsRepository patientDetailsRepository;
+    private final MailService mailService;
 
     @Transactional(readOnly = true)
     public MeResponse getCurrentUserProfile() {
@@ -420,33 +423,30 @@ public class AuthService {
         }
     }
 
-    public String createPasswordResetToken(
+    public void createPasswordResetToken(
             PasswordResetRequest request
     ) {
 
-        User user =
+        Optional<User> optionalUser =
                 userRepository.findByEmail(
                         request.getEmail()
-                ).orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "존재하지 않는 이메일입니다."
-                        )
                 );
 
-        String token =
-                UUID.randomUUID().toString();
+        if (optionalUser.isEmpty()) {
+            return;
+        }
+
+        User user = optionalUser.get();
+
+        String token = UUID.randomUUID().toString();
 
         PasswordResetToken passwordResetToken =
                 PasswordResetToken.builder()
                         .token(token)
                         .user(user)
-
-                        // 24시간 뒤 만료
                         .expiryDate(
-                                LocalDateTime.now()
-                                        .plusHours(24)
+                                LocalDateTime.now().plusMinutes(10)
                         )
-
                         .used(false)
                         .build();
 
@@ -454,7 +454,10 @@ public class AuthService {
                 passwordResetToken
         );
 
-        return token;
+        mailService.sendPasswordResetMail(
+                user.getEmail(),
+                token
+        );
     }
 
     public void resetPassword(
