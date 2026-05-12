@@ -3,6 +3,7 @@ package com.emr.medicare.patient.controller;
 import com.emr.medicare.common.response.ApiResponse;
 import com.emr.medicare.patient.dto.request.PatientDetailsCreateRequest;
 import com.emr.medicare.patient.dto.request.PatientDetailsUpdateRequest;
+import com.emr.medicare.patient.dto.response.MyProfileResponse;
 import com.emr.medicare.patient.dto.response.PatientDetailsResponse;
 import com.emr.medicare.patient.service.PatientDetailsService;
 import jakarta.validation.Valid;
@@ -26,6 +27,12 @@ import java.util.List;
 public class PatientController {
 
     private final PatientDetailsService patientDetailsService;
+
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('PATIENT')")
+    public ResponseEntity<ApiResponse<MyProfileResponse>> getMyProfile() {
+        return ResponseEntity.ok(ApiResponse.success(patientDetailsService.getMyProfile()));
+    }
 
     @PostMapping("/{userId}")
     @PreAuthorize("hasAnyRole('DOCTOR','NURSE')")

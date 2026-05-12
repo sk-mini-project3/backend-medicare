@@ -1,11 +1,15 @@
 package com.emr.medicare.patient.service;
 
 import com.emr.medicare.common.exception.BaseException;
+import com.emr.medicare.common.util.SecurityUtils;
 import com.emr.medicare.patient.dto.request.PatientDetailsCreateRequest;
 import com.emr.medicare.patient.dto.request.PatientDetailsUpdateRequest;
+import com.emr.medicare.patient.dto.response.MyProfileResponse;
 import com.emr.medicare.patient.dto.response.PatientDetailsResponse;
 import com.emr.medicare.patient.entity.PatientDetails;
 import com.emr.medicare.patient.repository.PatientDetailsRepository;
+import com.emr.medicare.user.entity.User;
+import com.emr.medicare.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,6 +26,7 @@ import java.util.stream.Collectors;
 public class PatientDetailsService {
 
     private final PatientDetailsRepository patientDetailsRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public PatientDetailsResponse create(Long userId, PatientDetailsCreateRequest request) {
@@ -50,6 +55,14 @@ public class PatientDetailsService {
         return patientDetailsRepository.findAll().stream()
                 .map(PatientDetailsResponse::new)
                 .collect(Collectors.toList());
+    }
+
+    public MyProfileResponse getMyProfile() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BaseException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+        PatientDetails details = patientDetailsRepository.findById(userId).orElse(null);
+        return new MyProfileResponse(user, details);
     }
 
     @Transactional
