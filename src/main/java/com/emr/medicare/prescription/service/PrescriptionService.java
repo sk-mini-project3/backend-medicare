@@ -12,9 +12,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -62,7 +65,21 @@ public class PrescriptionService {
     }
 
     public PrescriptionResponse getById(Long prescriptionId) {
-        return new PrescriptionResponse(findOrThrow(prescriptionId));
+        Prescription prescription = findOrThrow(prescriptionId);
+
+        // IDOR 방어: PATIENT는 본인 처방전만 조회 가능
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isPatient = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_PATIENT"));
+
+        if (isPatient) {
+            Long currentUserId = SecurityUtils.getCurrentUserId();
+            if (!prescription.getPatientId().equals(currentUserId)) {
+                throw new BaseException(HttpStatus.FORBIDDEN, "본인의 처방전이 아닙니다.");
+            }
+        }
+
+        return new PrescriptionResponse(prescription);
     }
 
     public List<PrescriptionResponse> getAll(PrescriptionStatus status, Long nurseId, Long doctorId) {
@@ -87,6 +104,12 @@ public class PrescriptionService {
     @Transactional
     public PrescriptionResponse approve(Long prescriptionId, Long doctorId) {
         Prescription prescription = findOrThrow(prescriptionId);
+
+        // 승인 전 위변조 검증
+        if (!computeHash(prescription).equals(prescription.getHash())) {
+            throw new BaseException(HttpStatus.BAD_REQUEST, "처방전 내용이 변조됐습니다.");
+        }
+
         if (prescription.getStatus() != PrescriptionStatus.PENDING) {
             throw new BaseException(HttpStatus.BAD_REQUEST, "대기 중인 처방전만 승인할 수 있습니다.");
         }
@@ -120,7 +143,7 @@ public class PrescriptionService {
                 + String.valueOf(p.getPatientId())
                 + String.valueOf(p.getMedication())
                 + String.valueOf(p.getDosage())
-                + String.valueOf(p.getCreatedAt());
+                + p.getCreatedAt().truncatedTo(ChronoUnit.SECONDS).toString();
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] bytes = digest.digest(raw.getBytes(StandardCharsets.UTF_8));

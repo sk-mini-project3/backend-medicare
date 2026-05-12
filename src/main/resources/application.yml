@@ -31,11 +31,10 @@ spring:
       password: ${REDIS_PASSWORD:}
 
 jwt:
-  # 환경 변수 미설정 시 로컬 기본값 (운영에서는 반드시 JWT_SECRET 설정)
-  secret: ${JWT_SECRET:this-is-very-secret-key-this-is-very-secret-key}
+  secret: ${JWT_SECRET}
   access-expiration: 1800000
   refresh-expiration: 604800000
 
 app:
   encryption:
-    secret-key: ${ENCRYPTION_KEY:defaultkeyfordevonly1234567890ab}
+    secret-key: ${ENCRYPTION_KEY}
