@@ -30,4 +30,9 @@ public class SignupRequest {
     // 간호사 인증코드
     private String nurseCode;
 
+    /** 환자 가입 시 선택 입력 — patient_details에 저장 */
+    private String bloodType;
+    private String insuranceInfo;
+    private String allergies;
+
 }

@@ -15,13 +15,20 @@ public class ReservationResponse {
     private final LocalDateTime reservationDate;
     private final String symptoms;
     private final ReservationStatus status;
+    /** users.name — patient_details 없이도 표시용 */
+    private final String patientName;
 
     public ReservationResponse(Reservation entity) {
+        this(entity, null);
+    }
+
+    public ReservationResponse(Reservation entity, String patientName) {
         this.reservationId = entity.getReservationId();
         this.patientId = entity.getPatientId();
         this.doctorId = entity.getDoctorId();
         this.reservationDate = entity.getReservationDate();
         this.symptoms = entity.getSymptoms();
         this.status = entity.getStatus();
+        this.patientName = (patientName != null && !patientName.isBlank()) ? patientName : null;
     }
 }

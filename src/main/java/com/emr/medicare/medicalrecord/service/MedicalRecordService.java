@@ -47,6 +47,12 @@ public class MedicalRecordService {
                 .collect(Collectors.toList());
     }
 
+    public List<MedicalRecordResponse> getByDoctorId(Long doctorId) {
+        return medicalRecordRepository.findByDoctorIdOrderByCreatedAtDesc(doctorId).stream()
+                .map(MedicalRecordResponse::new)
+                .collect(Collectors.toList());
+    }
+
     public MedicalRecordResponse getByReservationId(Long reservationId) {
         return medicalRecordRepository.findByReservationId(reservationId)
                 .map(MedicalRecordResponse::new)

@@ -36,11 +36,13 @@ public class JwtProvider {
     public String createAccessToken(
             Long userId,
             String email,
+            String name,
             Role role
     ) {
         return createToken(
                 userId,
                 email,
+                name,
                 role,
                 accessExpiration
         );
@@ -49,11 +51,13 @@ public class JwtProvider {
     public String createRefreshToken(
             Long userId,
             String email,
+            String name,
             Role role
     ) {
         return createToken(
                 userId,
                 email,
+                name,
                 role,
                 refreshExpiration
         );
@@ -62,6 +66,7 @@ public class JwtProvider {
     private String createToken(
             Long userId,
             String email,
+            String name,
             Role role,
             long expiration
     ) {
@@ -69,9 +74,12 @@ public class JwtProvider {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expiration);
 
+        String safeName = name == null ? "" : name;
+
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("email", email)
+                .claim("name", safeName)
                 .claim("role", role.name())
                 .issuedAt(now)
                 .expiration(expiry)

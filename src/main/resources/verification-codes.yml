@@ -1,0 +1,17 @@
+# 회원가입(의사·간호사) 인증코드 — 서버 기동 시 DB에 없으면 삽입됩니다.
+# 가입 시 입력한 이름은 각 항목의 ownerName 과 정확히 일치해야 합니다.
+verification:
+  doctors:
+    - code: DOCTOR-1234
+      ownerName: 홍길동
+    - code: DOCTOR-5678
+      ownerName: 홍길동
+    - code: DOCTOR-9999
+      ownerName: 홍길동
+  nurses:
+    - code: NURSE-1111
+      ownerName: 홍길동
+    - code: NURSE-2222
+      ownerName: 홍길동
+    - code: NURSE-3333
+      ownerName: 홍길동

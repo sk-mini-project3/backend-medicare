@@ -1,6 +1,7 @@
 package com.emr.medicare.auth.service;
 
 import com.emr.medicare.auth.dto.LoginRequest;
+import com.emr.medicare.auth.dto.MeResponse;
 import com.emr.medicare.auth.dto.ReissueRequest;
 import com.emr.medicare.auth.dto.SignupRequest;
 import com.emr.medicare.auth.dto.TokenResponse;
@@ -9,6 +10,8 @@ import com.emr.medicare.auth.dto.PasswordResetRequest;
 import com.emr.medicare.auth.entity.PasswordResetToken;
 import com.emr.medicare.auth.repository.PasswordResetTokenRepository;
 import com.emr.medicare.common.exception.TooManyRequestsException;
+import com.emr.medicare.common.exception.BaseException;
+import com.emr.medicare.common.util.SecurityUtils;
 import com.emr.medicare.doctor.entity.DoctorDetail;
 import com.emr.medicare.nurse.entity.NurseDetail;
 import com.emr.medicare.security.jwt.JwtProvider;
@@ -21,8 +24,11 @@ import com.emr.medicare.auth.repository.DoctorVerificationCodeRepository;
 import com.emr.medicare.auth.repository.NurseVerificationCodeRepository;
 import com.emr.medicare.doctor.repository.DoctorDetailRepository;
 import com.emr.medicare.nurse.repository.NurseDetailRepository;
+import com.emr.medicare.patient.entity.PatientDetails;
+import com.emr.medicare.patient.repository.PatientDetailsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +53,24 @@ public class AuthService {
     private final NurseVerificationCodeRepository nurseVerificationCodeRepository;
     private final DoctorDetailRepository doctorDetailRepository;
     private final NurseDetailRepository nurseDetailRepository;
+    private final PatientDetailsRepository patientDetailsRepository;
+
+    @Transactional(readOnly = true)
+    public MeResponse getCurrentUserProfile() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (userId == null) {
+            throw new BaseException(HttpStatus.UNAUTHORIZED, "인증 정보가 없습니다.");
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BaseException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+        return new MeResponse(
+                user.getUserId(),
+                user.getName(),
+                user.getEmail(),
+                user.getRole().name(),
+                user.getPhone() != null ? user.getPhone() : ""
+        );
+    }
 
     public void signup(SignupRequest request) {
 
@@ -66,12 +92,16 @@ public class AuthService {
                                     )
                             );
 
-            // 이름 검증
-            if (!verificationCode.getOwnerName()
-                    .equals(request.getName())) {
-
+            // 이름 검증 (공백 무시)
+            String registeredName = verificationCode.getOwnerName() == null
+                    ? ""
+                    : verificationCode.getOwnerName().trim();
+            String givenName = request.getName() == null ? "" : request.getName().trim();
+            if (!registeredName.equals(givenName)) {
                 throw new IllegalArgumentException(
-                        "이름과 의사 인증코드가 일치하지 않습니다."
+                        "이름과 의사 인증코드가 일치하지 않습니다. 해당 코드에 등록된 이름은 「"
+                                + registeredName
+                                + "」입니다."
                 );
             }
 
@@ -104,12 +134,15 @@ public class AuthService {
                                     )
                             );
 
-            // 이름 검증
-            if (!verificationCode.getOwnerName()
-                    .equals(request.getName())) {
-
+            String registeredName = verificationCode.getOwnerName() == null
+                    ? ""
+                    : verificationCode.getOwnerName().trim();
+            String givenName = request.getName() == null ? "" : request.getName().trim();
+            if (!registeredName.equals(givenName)) {
                 throw new IllegalArgumentException(
-                        "이름과 간호사 인증코드가 일치하지 않습니다."
+                        "이름과 간호사 인증코드가 일치하지 않습니다. 해당 코드에 등록된 이름은 「"
+                                + registeredName
+                                + "」입니다."
                 );
             }
 
@@ -142,6 +175,21 @@ public class AuthService {
 
         userRepository.save(user);
 
+        if (request.getRole() == Role.PATIENT && !patientDetailsRepository.existsById(user.getUserId())) {
+            PatientDetails patientDetails = PatientDetails.builder()
+                    .userId(user.getUserId())
+                    .residentNumber("SIGNUP_PENDING")
+                    .gender("미입력")
+                    .birthDate(null)
+                    .emergencyContact(null)
+                    .bloodType(trimToNull(request.getBloodType()))
+                    .address(null)
+                    .insuranceInfo(trimToNull(request.getInsuranceInfo()))
+                    .allergies(trimToNull(request.getAllergies()))
+                    .build();
+            patientDetailsRepository.save(patientDetails);
+        }
+
         if (request.getRole() == Role.DOCTOR) {
 
             DoctorDetail doctorDetail =
@@ -173,7 +221,12 @@ public class AuthService {
         }
     }
 
-
+    private static String trimToNull(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim();
+    }
 
     @Transactional(readOnly = true)
     public TokenResponse login(LoginRequest request) {
@@ -227,6 +280,7 @@ public class AuthService {
                 jwtProvider.createAccessToken(
                         user.getUserId(),
                         user.getEmail(),
+                        user.getName(),
                         user.getRole()
                 );
 
@@ -234,6 +288,7 @@ public class AuthService {
                 jwtProvider.createRefreshToken(
                         user.getUserId(),
                         user.getEmail(),
+                        user.getName(),
                         user.getRole()
                 );
 
@@ -292,6 +347,7 @@ public class AuthService {
                 jwtProvider.createAccessToken(
                         user.getUserId(),
                         user.getEmail(),
+                        user.getName(),
                         user.getRole()
                 );
 
@@ -299,6 +355,7 @@ public class AuthService {
                 jwtProvider.createRefreshToken(
                         user.getUserId(),
                         user.getEmail(),
+                        user.getName(),
                         user.getRole()
                 );
 

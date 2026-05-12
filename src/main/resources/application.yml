@@ -5,8 +5,13 @@ spring:
   application:
     name: medicare
 
+  config:
+    import: optional:file:.env[.properties]
+
   datasource:
-    url: jdbc:mysql://${DB_URL:localhost}:${DB_PORT:3306}/${DB_NAME:medicalservicedb}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    # 전체 JDBC URL은 SPRING_DATASOURCE_URL(또는 .env 동일 키)만 사용.
+    # 미설정 시: DB_HOST(기본 localhost) + DB_PORT + DB_NAME 으로 조합.
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:medicalservicedb}?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -26,10 +31,11 @@ spring:
       password: ${REDIS_PASSWORD:}
 
 jwt:
-  secret: ${JWT_SECRET}
+  # 환경 변수 미설정 시 로컬 기본값 (운영에서는 반드시 JWT_SECRET 설정)
+  secret: ${JWT_SECRET:this-is-very-secret-key-this-is-very-secret-key}
   access-expiration: 1800000
   refresh-expiration: 604800000
 
 app:
   encryption:
-    secret-key: ${ENCRYPTION_KEY}
+    secret-key: ${ENCRYPTION_KEY:defaultkeyfordevonly1234567890ab}
