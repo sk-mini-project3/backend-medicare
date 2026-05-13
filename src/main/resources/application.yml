@@ -6,7 +6,10 @@ spring:
     name: medicare
 
   config:
-    import: optional:file:.env[.properties]
+    # cwd 가 백엔드 폴더면 .env, 모노레포 루트면 medical-service-backend/.env 도 시도 (뒤가 우선)
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:medical-service-backend/.env[.properties]
 
   datasource:
     # 전체 JDBC URL은 SPRING_DATASOURCE_URL(또는 .env 동일 키)만 사용.
@@ -33,6 +36,7 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
+    # Gmail 앱 비밀번호에 공백이 있으면 .env 에서 반드시 따옴표로 감싸기: MAIL_PASSWORD="xxxx xxxx xxxx xxxx"
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
 
@@ -51,6 +55,12 @@ jwt:
 app:
   encryption:
     secret-key: ${ENCRYPTION_KEY}
+  # 비밀번호 재설정 메일의 링크 베이스 (프론트 dev 기본 포트 8080)
+  frontend-base-url: ${APP_FRONTEND_URL:http://localhost:8080}
+  mail:
+    # auto: MAIL_USERNAME 이 비어 있으면 실제 발송 생략하고 재설정 링크만 로그 출력(로컬 개발용).
+    # smtp: 항상 SMTP 발송(운영). console: 항상 로그만.
+    delivery: ${APP_MAIL_DELIVERY:auto}
 
 
 

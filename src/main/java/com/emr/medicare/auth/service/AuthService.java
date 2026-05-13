@@ -58,6 +58,42 @@ public class AuthService {
     private final PatientDetailsRepository patientDetailsRepository;
     private final MailService mailService;
 
+    /**
+     * 회원가입 1단계: 의사·간호사 인증코드가 DB에 있고 미사용인지 확인합니다(이름 일치는 가입 제출 시 검증).
+     */
+    @Transactional(readOnly = true)
+    public void validateStaffSignupCode(String roleRaw, String codeRaw) {
+        String code = codeRaw == null ? "" : codeRaw.trim();
+        if (!StringUtils.hasText(code)) {
+            throw new IllegalArgumentException("인증 코드를 입력해주세요.");
+        }
+        Role role;
+        try {
+            role = Role.valueOf(roleRaw == null ? "" : roleRaw.trim().toUpperCase());
+        } catch (Exception e) {
+            throw new IllegalArgumentException("역할이 올바르지 않습니다.");
+        }
+        if (role == Role.DOCTOR) {
+            DoctorVerificationCode v = doctorVerificationCodeRepository
+                    .findByDoctorCode(code)
+                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 의사 인증코드입니다."));
+            if (v.isUsed()) {
+                throw new IllegalArgumentException("이미 사용된 의사 인증코드입니다.");
+            }
+            return;
+        }
+        if (role == Role.NURSE) {
+            NurseVerificationCode v = nurseVerificationCodeRepository
+                    .findByNurseCode(code)
+                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 간호사 인증코드입니다."));
+            if (v.isUsed()) {
+                throw new IllegalArgumentException("이미 사용된 간호사 인증코드입니다.");
+            }
+            return;
+        }
+        throw new IllegalArgumentException("의사 또는 간호사만 인증 코드 검증이 가능합니다.");
+    }
+
     @Transactional(readOnly = true)
     public MeResponse getCurrentUserProfile() {
         Long userId = SecurityUtils.getCurrentUserId();
