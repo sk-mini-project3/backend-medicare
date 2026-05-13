@@ -44,6 +44,8 @@ public class EncryptionConverter implements AttributeConverter<String, String> {
     @Override
     public String convertToEntityAttribute(String dbData) {
         if (dbData == null) return null;
+        // 암호화 포맷(IV:encrypted)이 아닌 레거시 평문 데이터는 그대로 반환
+        if (!dbData.contains(":")) return dbData;
         try {
             String[] parts = dbData.split(":", 2);
             byte[] iv = Base64.getDecoder().decode(parts[0]);
