@@ -37,6 +37,14 @@ public class AuthController {
         );
     }
 
+    @PostMapping("/validate-staff-code")
+    public ResponseEntity<ApiResponse<Void>> validateStaffCode(
+            @Valid @RequestBody StaffCodeValidateRequest request
+    ) {
+        authService.validateStaffSignupCode(request.getRole(), request.getCode());
+        return ResponseEntity.ok(ApiResponse.success("인증 코드가 확인되었습니다.", null));
+    }
+
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<TokenResponse>> login(
             @Valid @RequestBody LoginRequest request

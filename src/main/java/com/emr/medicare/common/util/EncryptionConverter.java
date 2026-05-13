@@ -4,6 +4,7 @@ import com.emr.medicare.common.config.EncryptionProperties;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
@@ -16,6 +17,7 @@ import java.util.Base64;
 @Converter
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class EncryptionConverter implements AttributeConverter<String, String> {
 
     private static final String ALGORITHM = "AES/CBC/PKCS5Padding";
@@ -43,23 +45,45 @@ public class EncryptionConverter implements AttributeConverter<String, String> {
 
     @Override
     public String convertToEntityAttribute(String dbData) {
-        if (dbData == null) return null;
-        // 암호화 포맷(IV:encrypted)이 아닌 레거시 평문 데이터는 그대로 반환
-        if (!dbData.contains(":")) return dbData;
+        if (dbData == null) {
+            return null;
+        }
+        String trimmed = dbData.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        // 저장 포맷은 반드시 "단일콜론"으로 IV와 암호문을 구분. 콜론이 없으면 레거시 평문(시드·하이픈 주민번호 등).
+        if (!trimmed.contains(":")) {
+            return trimmed;
+        }
+        String[] parts = trimmed.split(":", 2);
+        if (parts.length != 2 || parts[0].isEmpty() || parts[1].isEmpty()) {
+            return trimmed;
+        }
         try {
-            String[] parts = dbData.split(":", 2);
             byte[] iv = Base64.getDecoder().decode(parts[0]);
             byte[] encrypted = Base64.getDecoder().decode(parts[1]);
+            if (iv.length != IV_LENGTH) {
+                return trimmed;
+            }
             Cipher cipher = Cipher.getInstance(ALGORITHM);
             cipher.init(Cipher.DECRYPT_MODE, buildKey(), new IvParameterSpec(iv));
             return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            // Base64가 아니면 IV:암호문 포맷이 아님 → 평문 등으로 간주
+            return trimmed;
         } catch (Exception e) {
-            throw new RuntimeException("Decryption failed", e);
+            log.warn(
+                    "resident_number 복호화 실패(키 변경·손상·암호문 불일치). 해당 필드는 null 처리: {}",
+                    e.toString()
+            );
+            return null;
         }
     }
 
     private SecretKeySpec buildKey() {
-        byte[] raw = encryptionProperties.getSecretKey().getBytes(StandardCharsets.UTF_8);
+        String sk = encryptionProperties.getSecretKey();
+        byte[] raw = (sk == null ? "" : sk).getBytes(StandardCharsets.UTF_8);
         // AES-256은 정확히 32바이트 키 필요 → 환경변수 길이에 무관하게 패딩/자름 처리
         byte[] key = new byte[KEY_LENGTH];
         System.arraycopy(raw, 0, key, 0, Math.min(raw.length, KEY_LENGTH));

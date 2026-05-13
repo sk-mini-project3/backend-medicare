@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnResource;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -21,12 +22,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * {@code classpath:verification-codes.yml} 의 인증코드를 DB에 반영합니다.
- * code 가 없으면 삽입하고, 이미 있으면 JPQL UPDATE 로 {@code ownerName} 을 YAML 값으로 덮어씁니다(used 유지).
+ * (선택) {@code classpath:verification-codes.yml} 이 있을 때만 기동 시 DB에 인증코드를 반영합니다.
+ * YAML 없이 DB만 쓰는 환경에서는 이 빈이 등록되지 않습니다.
  */
 @Slf4j
 @Component
 @Order(200)
+@ConditionalOnResource(resources = "classpath:verification-codes.yml")
 @RequiredArgsConstructor
 public class VerificationCodesYamlLoader implements ApplicationRunner {
 
