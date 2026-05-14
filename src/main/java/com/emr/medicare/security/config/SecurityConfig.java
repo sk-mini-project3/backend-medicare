@@ -89,6 +89,8 @@ public class SecurityConfig {
                                 "/api/auth/password-reset/**"
                         ).permitAll()
 
+                        .requestMatchers("/api/ai/**").permitAll()
+
                         .anyRequest().authenticated()
                 )
 

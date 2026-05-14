@@ -62,5 +62,8 @@ app:
     # smtp: 항상 SMTP 발송(운영). console: 항상 로그만.
     delivery: ${APP_MAIL_DELIVERY:auto}
 
+ai:
+  base-url: ${AI_BASE_URL:http://localhost:8001}
+
 
 
